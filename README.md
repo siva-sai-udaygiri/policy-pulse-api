@@ -1,86 +1,128 @@
 # Policy Pulse API
 
-Policy Pulse API is a Spring Boot REST backend for managing insurance policy records and policy documents.
+Policy Pulse API is a Spring Boot backend for managing insurance policy records and policy documents.
 
-It supports policy CRUD operations, pagination, status-based search, AWS S3 document upload/download, and Kafka event publishing after a document is uploaded.
+The application supports policy CRUD operations, paginated listing, status-based search, AWS S3 document upload/download, and Kafka event publishing after a policy document is uploaded.
+
+---
 
 ## Features
 
 - Create, read, update, and delete policy records
-- Paginated policy listing
+- Get paginated policy listings
 - Search policies by status
-- Upload policy documents to AWS S3
-- Download policy documents from AWS S3
-- Store only the S3 document key in the database
-- Publish a Kafka event when a policy document is uploaded
+- Upload policy documents to Amazon S3
+- Download policy documents from Amazon S3
+- Store only the S3 document key in PostgreSQL
+- Publish a Kafka event after successful document upload
 - Validate request data using Jakarta Bean Validation
+- Manage database schema using Flyway migrations
+- Support local frontend integration through CORS
+
+---
 
 ## Tech Stack
 
-- Java
-- Spring Boot
-- Spring Web
-- Spring Data JPA
-- PostgreSQL
-- AWS S3 SDK
-- Apache Kafka
-- Maven
-- Flyway
+| Area | Technology |
+|---|---|
+| Language | Java 17 |
+| Backend Framework | Spring Boot |
+| REST API | Spring Web |
+| Database | PostgreSQL |
+| ORM | Spring Data JPA / Hibernate |
+| Database Migration | Flyway |
+| Cloud Storage | Amazon S3 |
+| AWS SDK | AWS SDK v2 |
+| Messaging | Apache Kafka |
+| Validation | Jakarta Bean Validation |
+| Build Tool | Maven |
+
+---
+
+## Architecture
+
+```mermaid
+flowchart TD
+    UI[React / Postman Client] --> C[PolicyController]
+    C --> S[PolicyService]
+    S --> DB[(PostgreSQL)]
+    S --> S3S[S3Service]
+    S3S --> S3[(Amazon S3)]
+    S --> KP[PolicyKafkaProducer]
+    KP --> K[(Kafka Topic)]
+
+    DB --> S
+    S3 --> S3S
+    S --> C
+    C --> UI
+```
+
+---
 
 ## Project Structure
 
+```text
 src/main/java/com/policypulse/api
+├── Policy.java
+├── PolicyController.java
+├── PolicyRepository.java
+├── PolicyService.java
+├── S3Config.java
+├── S3Service.java
+├── PolicyDocumentUploadedEvent.java
+└── PolicyKafkaProducer.java
+```
 
-- Policy.java
-- PolicyController.java
-- PolicyRepository.java
-- PolicyService.java
-- S3Config.java
-- S3Service.java
-- PolicyDocumentUploadedEvent.java
-- PolicyKafkaProducer.java
+---
 
 ## Main Concepts
 
 ### Policy Entity
 
-Policy.java represents the policy table in the database.
+`Policy.java` represents one policy record in the database.
 
-One Policy object represents one row in the policy table.
+Main fields:
 
-Important fields:
+| Field | Purpose |
+|---|---|
+| `id` | Primary key |
+| `policyNumber` | Unique policy number |
+| `holderName` | Name of the policy holder |
+| `status` | Policy status such as `ACTIVE`, `PENDING`, or `EXPIRED` |
+| `premium` | Policy premium amount |
+| `documentKey` | S3 object key of the uploaded document |
+| `createdAt` | Record creation timestamp |
+| `updatedAt` | Last update timestamp |
 
-- id
-- policyNumber
-- holderName
-- status
-- premium
-- documentKey
-- createdAt
-- updatedAt
+---
 
-### Document Storage
+## Document Storage Design
 
-The actual document file is stored in AWS S3.
+The actual document file is stored in Amazon S3.
 
-The database does not store the full document file. It stores only the S3 object key in the document_key column.
+The database does **not** store the full file. It stores only the S3 object key in the `document_key` column.
 
 Example:
 
-S3 bucket stores:
-
+```text
+S3 bucket:
 1714450000000_policy.pdf
 
-Database stores:
-
+PostgreSQL policy table:
 document_key = 1714450000000_policy.pdf
+```
 
-### Kafka Event
+This keeps the database lightweight and lets S3 handle file storage.
 
-After a policy document is uploaded, the application can publish a Kafka event.
+---
+
+## Kafka Event Flow
+
+After a policy document is uploaded successfully, the application publishes a Kafka event.
 
 Example event:
 
+```json
 {
   "eventType": "POLICY_DOCUMENT_UPLOADED",
   "policyId": 10,
@@ -88,57 +130,148 @@ Example event:
   "documentKey": "1714450000000_policy.pdf",
   "uploadedAt": "2026-05-10T10:30:00Z"
 }
+```
 
-This event can later be consumed by another service, such as an audit service, notification service, or reporting service.
+This event can later be consumed by another service, such as:
+
+- Audit service
+- Notification service
+- Reporting service
+- Document processing service
+
+---
 
 ## API Endpoints
 
+Base URL:
+
+```text
+http://localhost:8080
+```
+
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | /api/policies?page=0&size=10 | Get paginated policies |
-| POST | /api/policies | Create a new policy |
-| GET | /api/policies/{id} | Get policy by ID |
-| PUT | /api/policies/{id} | Update policy by ID |
-| DELETE | /api/policies/{id} | Delete policy by ID |
-| GET | /api/policies/search?status=ACTIVE&page=0&size=10 | Search policies by status |
-| POST | /api/policies/{id}/document | Upload document for a policy |
-| GET | /api/policies/{id}/document | Download document for a policy |
+| `GET` | `/api/policies?page=0&size=10` | Get paginated policies |
+| `POST` | `/api/policies` | Create a new policy |
+| `GET` | `/api/policies/{id}` | Get policy by ID |
+| `PUT` | `/api/policies/{id}` | Update policy by ID |
+| `DELETE` | `/api/policies/{id}` | Delete policy by ID |
+| `GET` | `/api/policies/search?status=ACTIVE&page=0&size=10` | Search policies by status |
+| `POST` | `/api/policies/{id}/document` | Upload a document for a policy |
+| `GET` | `/api/policies/{id}/document` | Download a policy document |
 
-## Sample Create Policy Request
+---
 
+## Sample Requests
+
+### Create Policy
+
+```http
 POST /api/policies
+Content-Type: application/json
+```
 
 Request body:
 
+```json
 {
   "policyNumber": "POL101",
   "holderName": "John Doe",
   "status": "ACTIVE",
   "premium": 500.00
 }
+```
 
-## Sample Upload Document Request
+---
 
+### Get Paginated Policies
+
+```http
+GET /api/policies?page=0&size=10
+```
+
+Example response:
+
+```json
+{
+  "content": [
+    {
+      "id": 1,
+      "policyNumber": "POL101",
+      "holderName": "John Doe",
+      "status": "ACTIVE",
+      "premium": 500.00,
+      "documentKey": null
+    }
+  ],
+  "totalPages": 1,
+  "totalElements": 1,
+  "number": 0,
+  "size": 10,
+  "first": true,
+  "last": true
+}
+```
+
+---
+
+### Search Policies by Status
+
+```http
+GET /api/policies/search?status=ACTIVE&page=0&size=10
+```
+
+---
+
+### Upload Policy Document
+
+```http
 POST /api/policies/1/document
-
-Content-Type:
-
-multipart/form-data
+Content-Type: multipart/form-data
+```
 
 Form data:
 
+```text
 file = policy-document.pdf
+```
 
-## Sample Download Document Request
+Flow:
 
+```text
+Client uploads file
+-> PolicyController receives request
+-> PolicyService validates policy
+-> S3Service uploads file to Amazon S3
+-> PostgreSQL stores the S3 document key
+-> Kafka event is published
+```
+
+---
+
+### Download Policy Document
+
+```http
 GET /api/policies/1/document
+```
 
-The API returns the file as binary data with a download header.
+Flow:
+
+```text
+Client requests download
+-> PolicyController receives request
+-> PolicyService gets document key from database
+-> S3Service downloads file bytes from S3
+-> Controller returns the file as a downloadable response
+```
+
+---
 
 ## Configuration
 
-Add the required configuration in application.yml.
+Add the required configuration in `application.yml`.
 
+```yaml
 server:
   port: 8080
 
@@ -164,66 +297,164 @@ kafka:
   bootstrap-servers: localhost:9092
   topic:
     document-uploaded: policy-document-uploaded
+```
 
-## AWS S3 Setup
+---
 
-Create an S3 bucket in the AWS Console and update the bucket name in application.yml.
+## Local Setup
 
-The application uses S3Client to upload and download files from the configured bucket.
+### Prerequisites
 
-## Kafka Setup
+- Java 17
+- Maven
+- PostgreSQL
+- AWS credentials configured locally
+- S3 bucket created in AWS
+- Kafka running locally or available through a reachable bootstrap server
+
+---
+
+### Database Setup
+
+Create a PostgreSQL database:
+
+```sql
+CREATE DATABASE policy_pulse;
+```
+
+Flyway will run the migration scripts when the application starts.
+
+---
+
+### AWS S3 Setup
+
+Create an S3 bucket in AWS and update the bucket name in `application.yml`.
+
+The application uses `S3Client` to upload and download policy documents from the configured bucket.
+
+---
+
+### Kafka Setup
 
 Run Kafka locally or provide a reachable Kafka bootstrap server.
 
 Example:
 
+```yaml
 kafka:
   bootstrap-servers: localhost:9092
+```
 
-The producer sends document upload events to the configured topic.
+The producer sends document upload events to the configured topic:
+
+```text
+policy-document-uploaded
+```
+
+---
 
 ## Run the Application
 
+Using Maven:
+
+```bash
 mvn spring-boot:run
+```
+
+Using Maven Wrapper on Windows:
+
+```powershell
+mvnw.cmd spring-boot:run
+```
+
+Using Maven Wrapper on macOS/Linux:
+
+```bash
+./mvnw spring-boot:run
+```
 
 The backend runs on:
 
+```text
 http://localhost:8080
+```
+
+---
 
 ## Frontend CORS
 
-The controller allows requests from:
+The backend allows requests from the local React/Vite frontend:
 
+```text
 http://localhost:5173
+```
 
-This is useful when running a Vite/React frontend locally.
+This allows the Policy Pulse UI to call the Spring Boot API during local development.
 
-## Example Flow
+---
+
+## Application Flows
 
 ### Create Policy
 
-Frontend -> PolicyController -> PolicyService -> PolicyRepository -> PostgreSQL
+```text
+Frontend/Postman
+-> PolicyController
+-> PolicyService
+-> PolicyRepository
+-> PostgreSQL
+```
 
 ### Upload Document
 
-Frontend uploads file -> PolicyController -> PolicyService -> S3Service -> AWS S3 stores the file -> PostgreSQL stores the document key -> Kafka event is published
+```text
+Frontend/Postman
+-> PolicyController
+-> PolicyService
+-> S3Service
+-> Amazon S3
+-> PostgreSQL stores document key
+-> Kafka event is published
+```
 
 ### Download Document
 
-Frontend clicks download -> PolicyController -> PolicyService gets document key from DB -> S3Service downloads file bytes from S3 -> Controller returns byte[] as downloadable file
+```text
+Frontend/Postman
+-> PolicyController
+-> PolicyService
+-> PostgreSQL gets document key
+-> S3Service downloads file from Amazon S3
+-> Controller returns downloadable file
+```
+
+---
 
 ## Notes
 
-- The actual document is stored in S3.
-- The database stores only the S3 object key.
-- Kafka is used to publish an event after a successful document upload.
-- Validation is handled using annotations like NotBlank, NotNull, Size, and DecimalMin.
+- The actual policy document is stored in Amazon S3.
+- PostgreSQL stores only the S3 object key.
+- Kafka is used to publish an event after successful document upload.
+- Validation is handled using annotations such as `@NotBlank`, `@NotNull`, `@Size`, and `@DecimalMin`.
+- Flyway manages database schema changes.
+- The React frontend can call the API through the configured CORS origin.
+
+---
 
 ## Future Improvements
 
-- Add global exception handling
+- Add global exception handling with standardized error responses
+- Add Swagger/OpenAPI documentation
 - Add unit and integration tests
-- Add CloudWatch logging
-- Add authentication and authorization
+- Add Testcontainers for PostgreSQL/Kafka testing
 - Add Docker Compose for PostgreSQL and Kafka
-- Add API documentation with Swagger/OpenAPI
+- Add authentication and authorization
+- Add CloudWatch logging and monitoring
+- Add CI/CD deployment pipeline
+- Add file type and file size validation for uploads
+
+---
+
+## License
+
+This project is for learning and portfolio development.
