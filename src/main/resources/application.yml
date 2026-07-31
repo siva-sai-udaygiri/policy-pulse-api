@@ -1,8 +1,8 @@
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/policypulse
-    username: postgres
-    password: NewStrongPassword123!
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD}
 
   jpa:
     hibernate:
@@ -11,6 +11,11 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
 
 logging:
   level:
@@ -22,11 +27,6 @@ aws:
   region: us-east-1
   s3:
     bucket-name: policy-pulse-documents-sivasai-2026
-
-  servlet:
-    multipart:
-      max-file-size: 10MB
-      max-request-size: 10MB
 
 kafka:
   bootstrap-servers: localhost:9092
