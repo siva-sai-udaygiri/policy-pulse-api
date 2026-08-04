@@ -1,5 +1,7 @@
 package com.policypulse.api;
 
+import com.policypulse.api.policy.dto.CreatePolicyRequest;
+import com.policypulse.api.policy.dto.PolicyResponse;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpHeaders;
@@ -32,9 +34,10 @@ public class PolicyController {
         return policyService.getAllPolicies(page, size);
     }
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public Policy createPolicy(@Valid @RequestBody Policy policy) {
-        return policyService.createPolicy(policy);
+    public PolicyResponse createPolicy(
+            @Valid @RequestBody CreatePolicyRequest request
+    ) {
+        return policyService.createPolicy(request);
     }
 
     @GetMapping("/{id}")

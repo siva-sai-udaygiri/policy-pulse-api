@@ -1,5 +1,8 @@
 package com.policypulse.api;
 
+import com.policypulse.api.policy.domain.PolicyStatus;
+import com.policypulse.api.policy.dto.CreatePolicyRequest;
+import com.policypulse.api.policy.dto.PolicyResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -31,8 +34,17 @@ public class PolicyService {
         return policyRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Policy not found: " + id));
     }
-    public Policy createPolicy(Policy policy) {
-        return policyRepository.save(policy);
+    public PolicyResponse createPolicy(CreatePolicyRequest request) {
+        Policy policy = new Policy();
+
+        policy.setPolicyNumber(request.policyNumber());
+        policy.setHolderName(request.holderName());
+        policy.setStatus(request.status().name());
+        policy.setPremium(request.premium());
+
+        Policy savedPolicy = policyRepository.save(policy);
+
+        return toResponse(savedPolicy);
     }
     public Policy updatePolicy(Long id, Policy policy) {
         Policy existingPolicy = policyRepository.findById(id)
@@ -88,5 +100,17 @@ public class PolicyService {
         }
 
         return s3Service.downloadFile(policy.getDocumentKey());
+    }
+    private PolicyResponse toResponse(Policy policy) {
+        return new PolicyResponse(
+                policy.getId(),
+                policy.getPolicyNumber(),
+                policy.getHolderName(),
+                PolicyStatus.valueOf(policy.getStatus()),
+                policy.getPremium(),
+                policy.getDocumentKey() != null,
+                policy.getCreatedAt(),
+                policy.getUpdatedAt()
+        );
     }
 }
