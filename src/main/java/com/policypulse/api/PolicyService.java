@@ -3,21 +3,20 @@ package com.policypulse.api;
 import com.policypulse.api.policy.domain.PolicyStatus;
 import com.policypulse.api.policy.dto.CreatePolicyRequest;
 import com.policypulse.api.policy.dto.PolicyResponse;
+import com.policypulse.api.policy.dto.UpdatePolicyRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import java.util.List;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.multipart.MultipartFile;
-import java.io.IOException;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.io.IOException;
 
 @Service
 public class PolicyService {
 
     private final PolicyRepository policyRepository;
-
     private final S3Service s3Service;
     private final PolicyKafkaProducer policyKafkaProducer;
 
@@ -30,10 +29,12 @@ public class PolicyService {
         this.s3Service = s3Service;
         this.policyKafkaProducer = policyKafkaProducer;
     }
-    public Policy getPolicyById(Long id) {
-        return policyRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Policy not found: " + id));
+    public PolicyResponse getPolicyById(Long id) {
+        Policy policy = getPolicyEntityById(id);
+
+        return toResponse(policy);
     }
+
     public PolicyResponse createPolicy(CreatePolicyRequest request) {
         Policy policy = new Policy();
 
@@ -46,33 +47,54 @@ public class PolicyService {
 
         return toResponse(savedPolicy);
     }
-    public Policy updatePolicy(Long id, Policy policy) {
-        Policy existingPolicy = policyRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Policy not found: " + id));
 
-        existingPolicy.setPolicyNumber(policy.getPolicyNumber());
-        existingPolicy.setHolderName(policy.getHolderName());
-        existingPolicy.setStatus(policy.getStatus());
-        existingPolicy.setPremium(policy.getPremium());
+    public PolicyResponse updatePolicy(
+            Long id,
+            UpdatePolicyRequest request
+    ) {
+        Policy existingPolicy = getPolicyEntityById(id);
 
-        return policyRepository.save(existingPolicy);
+        existingPolicy.setPolicyNumber(request.policyNumber());
+        existingPolicy.setHolderName(request.holderName());
+        existingPolicy.setStatus(request.status().name());
+        existingPolicy.setPremium(request.premium());
+
+        Policy savedPolicy = policyRepository.save(existingPolicy);
+
+        return toResponse(savedPolicy);
     }
 
     public void deletePolicy(Long id) {
-        Policy existingPolicy = policyRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Policy not found: " + id));
+        Policy existingPolicy = getPolicyEntityById(id);
 
         policyRepository.delete(existingPolicy);
     }
-    public Page<Policy> getAllPolicies(int page, int size) {
-        return policyRepository.findAll(PageRequest.of(page, size));
+
+    public Page<PolicyResponse> getAllPolicies(int page, int size) {
+        return policyRepository
+                .findAll(PageRequest.of(page, size))
+                .map(this::toResponse);
     }
-    public Page<Policy> getPoliciesByStatus(String status, int page, int size) {
-        return policyRepository.findByStatusIgnoreCase(status, PageRequest.of(page, size));
+
+    public Page<PolicyResponse> getPoliciesByStatus(
+            String status,
+            int page,
+            int size
+    ) {
+        return policyRepository
+                .findByStatusIgnoreCase(
+                        status,
+                        PageRequest.of(page, size)
+                )
+                .map(this::toResponse);
     }
-    public Policy uploadPolicyDocument(Long id, MultipartFile file) throws IOException {
-        Policy policy = policyRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Policy not found: " + id));
+
+    public PolicyResponse uploadPolicyDocument(
+            Long id,
+            MultipartFile file
+    ) throws IOException {
+
+        Policy policy = getPolicyEntityById(id);
 
         String documentKey = s3Service.uploadFile(file);
         policy.setDocumentKey(documentKey);
@@ -89,18 +111,33 @@ public class PolicyService {
                 )
         );
 
-        return savedPolicy;
+        return toResponse(savedPolicy);
     }
-    public byte[] downloadPolicyDocument(Long id) {
-        Policy policy = policyRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Policy not found: " + id));
 
-        if (policy.getDocumentKey() == null || policy.getDocumentKey().isBlank()) {
-            throw new RuntimeException("No document found for policy: " + id);
+    public byte[] downloadPolicyDocument(Long id) {
+        Policy policy = getPolicyEntityById(id);
+
+        if (policy.getDocumentKey() == null
+                || policy.getDocumentKey().isBlank()) {
+
+            throw new RuntimeException(
+                    "No document found for policy: " + id
+            );
         }
 
         return s3Service.downloadFile(policy.getDocumentKey());
     }
+
+    private Policy getPolicyEntityById(Long id) {
+        return policyRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResponseStatusException(
+                                HttpStatus.NOT_FOUND,
+                                "Policy not found: " + id
+                        )
+                );
+    }
+
     private PolicyResponse toResponse(Policy policy) {
         return new PolicyResponse(
                 policy.getId(),
