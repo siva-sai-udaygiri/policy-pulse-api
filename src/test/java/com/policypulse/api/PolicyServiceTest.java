@@ -3,6 +3,7 @@ package com.policypulse.api;
 import com.policypulse.api.policy.domain.PolicyStatus;
 import com.policypulse.api.policy.dto.CreatePolicyRequest;
 import com.policypulse.api.policy.dto.PolicyResponse;
+import com.policypulse.api.policy.exception.PolicyNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -120,21 +121,20 @@ class PolicyServiceTest {
         verifyNoInteractions(s3Service, policyKafkaProducer);
     }
     @Test
-    void getPolicyById_whenPolicyDoesNotExist_throwsNotFound() {
+    void getPolicyById_whenPolicyDoesNotExist_throwsPolicyNotFoundException() {
         Long policyId = 999L;
 
         when(policyRepository.findById(policyId))
                 .thenReturn(Optional.empty());
 
-        ResponseStatusException exception = assertThrows(
-                ResponseStatusException.class,
+        PolicyNotFoundException exception = assertThrows(
+                PolicyNotFoundException.class,
                 () -> policyService.getPolicyById(policyId)
         );
 
-        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
         assertEquals(
                 "Policy not found: " + policyId,
-                exception.getReason()
+                exception.getMessage()
         );
 
         verify(policyRepository).findById(policyId);

@@ -1,4 +1,4 @@
-package com.policypulse.api;
+package com.policypulse.api.policy.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -29,6 +29,18 @@ public class GlobalExceptionHandler {
         Map<String, Object> error = new LinkedHashMap<>();
         error.put("status", ex.getStatusCode().value());
         error.put("message", ex.getReason());
+        return error;
+    }
+    @ExceptionHandler(PolicyNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Map<String, Object> handlePolicyNotFound(
+            PolicyNotFoundException ex
+    ) {
+        Map<String, Object> error = new LinkedHashMap<>();
+
+        error.put("status", HttpStatus.NOT_FOUND.value());
+        error.put("message", ex.getMessage());
+
         return error;
     }
 }

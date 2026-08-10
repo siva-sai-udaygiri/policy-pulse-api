@@ -4,6 +4,7 @@ import com.policypulse.api.policy.domain.PolicyStatus;
 import com.policypulse.api.policy.dto.CreatePolicyRequest;
 import com.policypulse.api.policy.dto.PolicyResponse;
 import com.policypulse.api.policy.dto.UpdatePolicyRequest;
+import com.policypulse.api.policy.exception.PolicyNotFoundException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -127,14 +128,10 @@ public class PolicyService {
 
         return s3Service.downloadFile(policy.getDocumentKey());
     }
-
     private Policy getPolicyEntityById(Long id) {
         return policyRepository.findById(id)
                 .orElseThrow(() ->
-                        new ResponseStatusException(
-                                HttpStatus.NOT_FOUND,
-                                "Policy not found: " + id
-                        )
+                        new PolicyNotFoundException(id)
                 );
     }
 
