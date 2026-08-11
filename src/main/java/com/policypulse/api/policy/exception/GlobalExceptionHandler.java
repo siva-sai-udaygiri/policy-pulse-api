@@ -33,14 +33,12 @@ public class GlobalExceptionHandler {
     }
     @ExceptionHandler(PolicyNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    public Map<String, Object> handlePolicyNotFound(
+    public ApiErrorResponse handlePolicyNotFound(
             PolicyNotFoundException ex
     ) {
-        Map<String, Object> error = new LinkedHashMap<>();
-
-        error.put("status", HttpStatus.NOT_FOUND.value());
-        error.put("message", ex.getMessage());
-
-        return error;
+        return new ApiErrorResponse(
+                HttpStatus.NOT_FOUND.value(),
+                ex.getMessage()
+        );
     }
 }
