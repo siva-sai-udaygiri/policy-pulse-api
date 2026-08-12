@@ -1,6 +1,7 @@
 package com.policypulse.api;
 
 import com.policypulse.api.policy.exception.GlobalExceptionHandler;
+import com.policypulse.api.policy.exception.PolicyDocumentNotFoundException;
 import com.policypulse.api.policy.exception.PolicyNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,5 +36,18 @@ class PolicyControllerTest {
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.message")
                         .value("Policy not found: 999"));
+    }
+    @Test
+    void downloadPolicyDocument_whenDocumentDoesNotExist_returns404() throws Exception {
+        Long policyId = 10L;
+
+        when(policyService.downloadPolicyDocument(policyId))
+                .thenThrow(new PolicyDocumentNotFoundException(policyId));
+
+        mockMvc.perform(get("/api/policies/10/document"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.message")
+                        .value("No document found for policy: 10"));
     }
 }

@@ -3,6 +3,7 @@ package com.policypulse.api;
 import com.policypulse.api.policy.domain.PolicyStatus;
 import com.policypulse.api.policy.dto.CreatePolicyRequest;
 import com.policypulse.api.policy.dto.PolicyResponse;
+import com.policypulse.api.policy.exception.PolicyDocumentNotFoundException;
 import com.policypulse.api.policy.exception.PolicyNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -327,5 +328,28 @@ class PolicyServiceTest {
                 any(PolicyDocumentUploadedEvent.class)
         );
 
+    }
+    @Test
+    void downloadPolicyDocument_whenDocumentDoesNotExist_throwsPolicyDocumentNotFoundException() {
+        Long policyId = 10L;
+
+        Policy policy = new Policy();
+        policy.setDocumentKey(null);
+
+        when(policyRepository.findById(policyId))
+                .thenReturn(Optional.of(policy));
+
+        PolicyDocumentNotFoundException exception = assertThrows(
+                PolicyDocumentNotFoundException.class,
+                () -> policyService.downloadPolicyDocument(policyId)
+        );
+
+        assertEquals(
+                "No document found for policy: " + policyId,
+                exception.getMessage()
+        );
+
+        verify(policyRepository).findById(policyId);
+        verifyNoInteractions(s3Service, policyKafkaProducer);
     }
 }

@@ -4,7 +4,9 @@ import com.policypulse.api.policy.domain.PolicyStatus;
 import com.policypulse.api.policy.dto.CreatePolicyRequest;
 import com.policypulse.api.policy.dto.PolicyResponse;
 import com.policypulse.api.policy.dto.UpdatePolicyRequest;
+import com.policypulse.api.policy.exception.PolicyDocumentNotFoundException;
 import com.policypulse.api.policy.exception.PolicyNotFoundException;
+import jakarta.transaction.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -35,7 +37,7 @@ public class PolicyService {
 
         return toResponse(policy);
     }
-
+    @Transactional
     public PolicyResponse createPolicy(CreatePolicyRequest request) {
         Policy policy = new Policy();
 
@@ -48,7 +50,7 @@ public class PolicyService {
 
         return toResponse(savedPolicy);
     }
-
+    @Transactional
     public PolicyResponse updatePolicy(
             Long id,
             UpdatePolicyRequest request
@@ -64,7 +66,7 @@ public class PolicyService {
 
         return toResponse(savedPolicy);
     }
-
+    @Transactional
     public void deletePolicy(Long id) {
         Policy existingPolicy = getPolicyEntityById(id);
 
@@ -118,12 +120,8 @@ public class PolicyService {
     public byte[] downloadPolicyDocument(Long id) {
         Policy policy = getPolicyEntityById(id);
 
-        if (policy.getDocumentKey() == null
-                || policy.getDocumentKey().isBlank()) {
-
-            throw new RuntimeException(
-                    "No document found for policy: " + id
-            );
+        if (policy.getDocumentKey() == null || policy.getDocumentKey().isBlank()) {
+            throw new PolicyDocumentNotFoundException(id);
         }
 
         return s3Service.downloadFile(policy.getDocumentKey());
