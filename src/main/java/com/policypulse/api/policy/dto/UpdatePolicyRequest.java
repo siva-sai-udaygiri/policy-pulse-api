@@ -10,19 +10,19 @@ import java.math.BigDecimal;
 
 public record UpdatePolicyRequest(
 
-        @NotBlank
-        @Size(max = 50)
+        @NotBlank(message = "Policy number is required")
+        @Size(max = 50, message = "Policy number must be at most 50 characters")
         String policyNumber,
 
-        @NotBlank
-        @Size(max = 120)
+        @NotBlank(message = "Holder name is required")
+        @Size(max = 120, message = "Holder name must be at most 120 characters")
         String holderName,
 
-        @NotNull
+        @NotNull(message = "Policy status is required")
         PolicyStatus status,
 
-        @NotNull
-        @DecimalMin("0.0")
+        @NotNull(message = "Premium is required")
+        @DecimalMin(value = "0.0", message = "Premium must be greater than or equal to 0")
         BigDecimal premium
 
 ) {
