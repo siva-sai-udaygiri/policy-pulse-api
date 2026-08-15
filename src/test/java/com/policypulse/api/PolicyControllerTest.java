@@ -16,7 +16,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import com.policypulse.api.policy.dto.CreatePolicyRequest;
+import com.policypulse.api.policy.exception.DuplicatePolicyException;
 
+import static org.mockito.ArgumentMatchers.any;
 
 @WebMvcTest(PolicyController.class)
 @Import(GlobalExceptionHandler.class)
@@ -79,5 +82,28 @@ class PolicyControllerTest {
                         .value("Policy status is required"))
                 .andExpect(jsonPath("$.fieldErrors.premium")
                         .value("Premium is required"));
+    }
+    @Test
+    void createPolicy_whenPolicyNumberAlreadyExists_returns409() throws Exception {
+
+        when(policyService.createPolicy(any(CreatePolicyRequest.class)))
+                .thenThrow(new DuplicatePolicyException("POL-1001"));
+
+        String requestBody = """
+            {
+              "policyNumber": "POL-1001",
+              "holderName": "John Doe",
+              "status": "ACTIVE",
+              "premium": 500.00
+            }
+            """;
+
+        mockMvc.perform(post("/api/policies")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.message")
+                        .value("Policy already exists with policy number: POL-1001"));
     }
 }

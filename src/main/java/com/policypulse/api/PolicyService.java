@@ -4,6 +4,7 @@ import com.policypulse.api.policy.domain.PolicyStatus;
 import com.policypulse.api.policy.dto.CreatePolicyRequest;
 import com.policypulse.api.policy.dto.PolicyResponse;
 import com.policypulse.api.policy.dto.UpdatePolicyRequest;
+import com.policypulse.api.policy.exception.DuplicatePolicyException;
 import com.policypulse.api.policy.exception.PolicyDocumentNotFoundException;
 import com.policypulse.api.policy.exception.PolicyNotFoundException;
 import jakarta.transaction.Transactional;
@@ -39,6 +40,11 @@ public class PolicyService {
     }
     @Transactional
     public PolicyResponse createPolicy(CreatePolicyRequest request) {
+
+        if (policyRepository.existsByPolicyNumber(request.policyNumber())) {
+            throw new DuplicatePolicyException(request.policyNumber());
+        }
+
         Policy policy = new Policy();
 
         policy.setPolicyNumber(request.policyNumber());
@@ -145,4 +151,5 @@ public class PolicyService {
                 policy.getUpdatedAt()
         );
     }
+
 }

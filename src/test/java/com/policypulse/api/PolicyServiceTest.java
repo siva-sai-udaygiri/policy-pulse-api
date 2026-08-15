@@ -3,6 +3,7 @@ package com.policypulse.api;
 import com.policypulse.api.policy.domain.PolicyStatus;
 import com.policypulse.api.policy.dto.CreatePolicyRequest;
 import com.policypulse.api.policy.dto.PolicyResponse;
+import com.policypulse.api.policy.exception.DuplicatePolicyException;
 import com.policypulse.api.policy.exception.PolicyDocumentNotFoundException;
 import com.policypulse.api.policy.exception.PolicyNotFoundException;
 import org.junit.jupiter.api.Test;
@@ -351,5 +352,32 @@ class PolicyServiceTest {
 
         verify(policyRepository).findById(policyId);
         verifyNoInteractions(s3Service, policyKafkaProducer);
+    }
+    @Test
+    void createPolicy_whenPolicyNumberAlreadyExists_throwsDuplicatePolicyException() {
+        String policyNumber = "POL-1001";
+
+        CreatePolicyRequest request = new CreatePolicyRequest(
+                policyNumber,
+                "John Doe",
+                PolicyStatus.ACTIVE,
+                new BigDecimal("500.00")
+        );
+
+        when(policyRepository.existsByPolicyNumber(policyNumber))
+                .thenReturn(true);
+
+        DuplicatePolicyException exception = assertThrows(
+                DuplicatePolicyException.class,
+                () -> policyService.createPolicy(request)
+        );
+
+        assertEquals(
+                "Policy already exists with policy number: " + policyNumber,
+                exception.getMessage()
+        );
+
+        verify(policyRepository).existsByPolicyNumber(policyNumber);
+        verify(policyRepository, never()).save(any());
     }
 }
