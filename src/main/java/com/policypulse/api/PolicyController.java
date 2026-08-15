@@ -3,9 +3,10 @@ package com.policypulse.api;
 import com.policypulse.api.policy.dto.CreatePolicyRequest;
 import com.policypulse.api.policy.dto.PolicyResponse;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,7 +16,6 @@ import org.springframework.web.multipart.MultipartFile;
 import com.policypulse.api.policy.dto.UpdatePolicyRequest;
 
 import java.io.IOException;
-import java.util.List;
 @CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/api/policies")
@@ -29,7 +29,11 @@ public class PolicyController {
 
     @GetMapping
     public Page<PolicyResponse> getAllPolicies(
+            @Min(0)
             @RequestParam(defaultValue = "0") int page,
+
+            @Min(1)
+            @Max(100)
             @RequestParam(defaultValue = "10") int size) {
         return policyService.getAllPolicies(page, size);
     }

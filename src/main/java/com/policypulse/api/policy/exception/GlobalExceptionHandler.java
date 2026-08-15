@@ -5,6 +5,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.LinkedHashMap;
@@ -70,4 +71,15 @@ public class GlobalExceptionHandler {
                 ex.getMessage()
         );
     }
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiErrorResponse handleMethodValidation(
+            HandlerMethodValidationException ex
+    ) {
+        return new ApiErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                "Validation failure"
+        );
+    }
+
 }
