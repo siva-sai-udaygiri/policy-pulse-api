@@ -10,10 +10,10 @@ import com.policypulse.api.policy.exception.PolicyNotFoundException;
 import jakarta.transaction.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.http.HttpStatus;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 
@@ -79,10 +79,31 @@ public class PolicyService {
         policyRepository.delete(existingPolicy);
     }
 
-    public Page<PolicyResponse> getAllPolicies(int page, int size) {
-        return policyRepository
-                .findAll(PageRequest.of(page, size))
-                .map(this::toResponse);
+    public Page<PolicyResponse> getAllPolicies(
+            int page,
+            int size,
+            String policyNumber,
+            String sortBy,
+            String sortDir) {
+
+        Sort sort = sortDir.equalsIgnoreCase("asc")
+                ? Sort.by(sortBy).ascending()
+                : Sort.by(sortBy).descending();
+
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        Page<Policy> policies;
+
+        if (policyNumber == null || policyNumber.isBlank()) {
+            policies = policyRepository.findAll(pageable);
+        } else {
+            policies = policyRepository.findByPolicyNumber(
+                    policyNumber,
+                    pageable
+            );
+        }
+
+        return policies.map(this::toResponse);
     }
 
     public Page<PolicyResponse> getPoliciesByStatus(
