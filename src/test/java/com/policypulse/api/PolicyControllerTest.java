@@ -145,8 +145,12 @@ class PolicyControllerTest {
     }
     @Test
     void getAllPolicies_whenSizeIsMaximum_returns200() throws Exception {
-
-        when(policyService.getAllPolicies(0, 100))
+        when(policyService.getAllPolicies(
+                0,
+                100,
+                null,
+                "createdAt",
+                "desc"))
                 .thenReturn(Page.empty());
 
         mockMvc.perform(get("/api/policies")
@@ -154,6 +158,54 @@ class PolicyControllerTest {
                         .param("size", "100"))
                 .andExpect(status().isOk());
 
-        verify(policyService).getAllPolicies(0, 100);
+        verify(policyService).getAllPolicies(
+                0,
+                100,
+                null,
+                "createdAt",
+                "desc"
+        );
+
+    }
+    @Test
+    void getAllPolicies_whenSortDirectionIsInvalid_returns400() throws Exception {
+
+        mockMvc.perform(get("/api/policies")
+                        .param("sortDir", "wrong"))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(policyService);
+    }
+    @Test
+    void getAllPolicies_whenSortByIsInvalid_returns400() throws Exception {
+
+        mockMvc.perform(get("/api/policies")
+                        .param("sortBy", "banana"))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(policyService);
+    }
+    @Test
+    void getAllPolicies_whenPolicyNumberProvided_passesItToService() throws Exception {
+
+        when(policyService.getAllPolicies(
+                0,
+                20,
+                "POL-12345",
+                "createdAt",
+                "desc"))
+                .thenReturn(Page.empty());
+
+        mockMvc.perform(get("/api/policies")
+                        .param("policyNumber", "POL-12345"))
+                .andExpect(status().isOk());
+
+        verify(policyService).getAllPolicies(
+                0,
+                20,
+                "POL-12345",
+                "createdAt",
+                "desc"
+        );
     }
 }

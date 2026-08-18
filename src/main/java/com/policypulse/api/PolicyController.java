@@ -5,6 +5,7 @@ import com.policypulse.api.policy.dto.PolicyResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -29,13 +30,20 @@ public class PolicyController {
 
     @GetMapping
     public Page<PolicyResponse> getAllPolicies(
-            @Min(0)
-            @RequestParam(defaultValue = "0") int page,
-
-            @Min(1)
-            @Max(100)
-            @RequestParam(defaultValue = "10") int size) {
-        return policyService.getAllPolicies(page, size);
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
+            @RequestParam(required = false) String policyNumber,
+            @RequestParam(defaultValue = "createdAt") @Pattern(regexp = "createdAt|updatedAt|premium|policyNumber|holderName|status") String sortBy,
+            @RequestParam(defaultValue = "desc")
+            @Pattern(regexp = "(?i)asc|desc") String sortDir)
+    {
+        return policyService.getAllPolicies(
+                page,
+                size,
+                policyNumber,
+                sortBy,
+                sortDir
+        );
     }
     @PostMapping
     public PolicyResponse createPolicy(

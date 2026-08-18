@@ -12,12 +12,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.mock.web.MockMultipartFile;
 
 import java.io.IOException;
@@ -159,7 +157,10 @@ class PolicyServiceTest {
         secondPolicy.setStatus("PENDING");
         secondPolicy.setPremium(new BigDecimal("700.00"));
 
-        PageRequest pageable = PageRequest.of(0, 10);
+        PageRequest pageable = PageRequest.of( 0,
+                10,
+                Sort.by("createdAt").descending()
+        );
 
         Page<Policy> policyPage = new PageImpl<>(
                 List.of(firstPolicy, secondPolicy),
@@ -171,7 +172,13 @@ class PolicyServiceTest {
                 .thenReturn(policyPage);
 
         Page<PolicyResponse> responsePage =
-                policyService.getAllPolicies(0, 10);
+                policyService.getAllPolicies(
+                        0,
+                        10,
+                        null,
+                        "createdAt",
+                        "desc"
+                );
 
         assertEquals(2, responsePage.getContent().size());
         assertEquals(2, responsePage.getTotalElements());
@@ -379,5 +386,57 @@ class PolicyServiceTest {
 
         verify(policyRepository).existsByPolicyNumber(policyNumber);
         verify(policyRepository, never()).save(any());
+    }
+    @Test
+    void getAllPolicies_whenSortAscending_createsCorrectPageable() {
+
+        when(policyRepository.findAll(any(Pageable.class)))
+                .thenReturn(Page.empty());
+
+        policyService.getAllPolicies(
+                0,
+                20,
+                null,
+                "premium",
+                "desc"
+        );
+
+        ArgumentCaptor<Pageable> pageableCaptor =
+                ArgumentCaptor.forClass(Pageable.class);
+
+        verify(policyRepository).findAll(pageableCaptor.capture());
+
+        Pageable pageable = pageableCaptor.getValue();
+
+        assertEquals(0, pageable.getPageNumber());
+        assertEquals(20, pageable.getPageSize());
+        assertEquals(
+                Sort.Direction.DESC,
+                pageable.getSort().getOrderFor("premium").getDirection()
+        );
+    }
+    @Test
+    void getAllPolicies_whenPolicyNumberProvided_filtersByPolicyNumber() {
+
+        when(policyRepository.findByPolicyNumber(
+                eq("POL-12345"),
+                any(Pageable.class)))
+                .thenReturn(Page.empty());
+
+        policyService.getAllPolicies(
+                0,
+                20,
+                "POL-12345",
+                "createdAt",
+                "desc"
+        );
+
+        verify(policyRepository).findByPolicyNumber(
+                eq("POL-12345"),
+                any(Pageable.class)
+        );
+
+        verify(policyRepository, never())
+                .findAll(any(Pageable.class));
     }
 }
